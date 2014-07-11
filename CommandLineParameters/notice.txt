@@ -1,0 +1,5 @@
+You need Log4J for this project, it can be downloaded from the Apache page here:
+
+http://logging.apache.org/log4j/2.x/download.html
+
+You esp. need log4j-api-2.0-rc2.jar and log4j-core-2.0-rc2.jar from the downloaded archive.
