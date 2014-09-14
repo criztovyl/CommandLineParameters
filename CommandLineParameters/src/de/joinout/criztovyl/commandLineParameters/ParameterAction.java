@@ -26,16 +26,16 @@ package de.joinout.criztovyl.commandLineParameters;
 public interface ParameterAction {
 
 	/**
+	 * 
+	 * @return the description of this parameter.
+	 */
+	public String getDescription();
+
+	/**
 	 * Runs a specified action
 	 * 
 	 * @param param
 	 *            all parameters needed for the environment
 	 */
 	public void run(Parameters param);
-	
-	/**
-	 * 
-	 * @return the description of this parameter.
-	 */
-	public String getDescription();
 }

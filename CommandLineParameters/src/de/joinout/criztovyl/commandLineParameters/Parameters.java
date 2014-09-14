@@ -18,11 +18,16 @@
 package de.joinout.criztovyl.commandLineParameters;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Represents a map of parameters where the parameter name is the key and the
  * parameter the value.<br>
+ * You can include a description which will be shown in the first lines of the {@link #getHelp()} {@link String}.
  * 
  * @author criztovyl
  * 
@@ -33,83 +38,64 @@ public class Parameters extends HashMap<ParameterName, Parameter> {
 	 */
 	private static final long serialVersionUID = -1764523522307086756L;
 
-	private final ArrayList<String> arguments;
+	private ArrayList<String> arguments;
 
-	private final String description;
+	private String description, action;
 
-	private final HashMap<String, ParameterAction> actions;
+	private HashMap<String, ParameterAction> actions;
 
-	private String action;
+	private Logger logger;
 
 	/**
-	 * Creates a new map of parameters.
+	 * Creates a new empty parameter manager.
 	 */
 	public Parameters() {
-
-		// Setup
 		this("");
 	}
 
 	/**
-	 * Creates a new map of parameters.<br>
-	 * Includes a given description.
+	 * Creates a new, empty parameter manager. Includes a description.<br>
 	 * 
 	 * @param description
-	 *            the description, will be the first line(s) of the help.
+	 *            the description as a {@link String}.
 	 */
 	public Parameters(String description) {
 
-		// Setup map
+		// Setup map and required variables
 		super();
-
+		
 		// Setup arguments
-		arguments = new ArrayList<String>();
+		arguments = new ArrayList<>();
 
 		// Setup description
 		this.description = description == null ? "" : description;
 
 		// Setup actions and action
-		actions = new HashMap<>();
+		this.actions = new HashMap<>();
 		action = "";
 
+		logger = LogManager.getLogger();
 	}
 
 	/**
-	 * Adds a action to the given key
-	 * 
-	 * @param key
-	 *            the key
-	 * @param action
-	 *            the action
+	 * Checks if contains a parameter name.
+	 * @param o the parameter name, as {@link Character}, {@link String} or {@link ParameterName}
+	 * @return true if map contains mapping for the parameter as a key.
 	 */
-	public void addAction(String key, ParameterAction action) {
-		getActions().put(key, action);
+	public boolean containsKey(Object o){
+		//Its a Strings, Strings are long names
+		if(o instanceof String)
+			return containsLong((String) o);
+		//Its a Character, Characters are short names
+		else if(o instanceof Character)
+			return containsShort((Character) o);
+		//Its a ParameterName, ParameterNames are full names
+		else if(o instanceof ParameterName)
+			return super.containsKey((ParameterName) o);
+		//Its something different
+		else
+			return super.containsKey(o);
 	}
-
-	/**
-	 * Checks if this contains the given key. Key will be used to match against
-	 * the {@link ParameterName#getShortName()}
-	 * 
-	 * @param key
-	 */
-	public boolean containsKey(Character key) {
-
-		// pass-through
-		return containsShort(key);
-	}
-
-	/**
-	 * Checks if this contains the given key. Key will be used to match against
-	 * the {@link ParameterName#getLongName()}
-	 * 
-	 * @param key
-	 */
-	public boolean containsKey(String key) {
-
-		// pass-through
-		return containsLong(key);
-	}
-
 	/**
 	 * Checks if this contains the given long parameter
 	 * 
@@ -184,7 +170,7 @@ public class Parameters extends HashMap<ParameterName, Parameter> {
 	}
 
 	/**
-	 * @return the arguments
+	 * @return the arguments as a list of strings
 	 */
 	public ArrayList<String> getArguments() {
 		return arguments;
@@ -198,38 +184,39 @@ public class Parameters extends HashMap<ParameterName, Parameter> {
 	 *         will be prefixed by tabs.
 	 */
 	public String getHelp() {
-		
-		//Setup strings
+
+		// Setup strings
 		final String newline = String.format("%n");
-		final String lineseparator = String.format("\t-----------------------------%n");
+		final String lineseparator = String
+				.format("\t-----------------------------%n");
 		String help = "";
-		
-		//Add description with trailing tab
+
+		// Add description with trailing tab
 		for (final String str : description.split(newline))
 			help += "\t" + str + newline;
-		
-		//Separate and add title (with two newlines)
+
+		// Separate and add title (with two newlines)
 		help += lineseparator;
 		help += "\tActions:" + newline + newline;
-		
-		//Add help for each action, with trailing tab(s) 
-		//Format: (tab)(name):(newline)
-		//            (description)
+
+		// Add help for each action, with trailing tab(s)
+		// Format: (tab)(name):(newline)
+		// (description)
 		for (final String name : getActions().keySet())
 			help += String.format(
 					"\t---------%n\t%s:%n\t\t%s%n",
 					name,
-					getActions().get(name).getDescription().replaceAll(newline,
-							newline + "\t\t\t"));
-		
-		//Separate and add title (with two newlines)
+					getActions().get(name).getDescription()
+							.replaceAll(newline, newline + "\t\t\t"));
+
+		// Separate and add title (with two newlines)
 		help += lineseparator;
 		help += "\tParameters:" + newline + newline;
 
-		//Add help for each parameter, with trailing tab(s) 
-		//Format: (tab)--(long name)(/-(short name)):(newline)
-		//            (description)
-		//Short name only if has one, when, then a slash is suffixed.
+		// Add help for each parameter, with trailing tab(s)
+		// Format: (tab)--(long name)(/-(short name)):(newline)
+		// (description)
+		// Short name only if has one, when, then a slash is suffixed.
 		for (final ParameterName name : keySet())
 			help += String.format(
 					"\t---------%n\t--%s%s:%n\t\t%s%n",
@@ -312,6 +299,104 @@ public class Parameters extends HashMap<ParameterName, Parameter> {
 	public ParameterName getNameByShort(String shortName) {
 		return getNameByShort(shortName.charAt(0));
 	}
+	/**
+	 * Checks whether a {@link String} is a valid parameter key by checking if starts with - or -- and is followed by an string without white-space charaters.
+	 * @param s
+	 * @return
+	 */
+	public boolean isParameter(String s){
+		return s.matches("(-{1,2}\\^s*)");
+	}
+	/**
+	 * Parses an argument array
+	 * @param args the array
+	 */
+	public void parse(String[] args) {
+		
+		//Make list
+		ArrayList<String> raw = new ArrayList<>(Arrays.asList(args));
+
+		// Cancel if is empty
+		if (raw.isEmpty())
+			return;
+
+		// First argument in list is action if is no parameter
+		if(!isParameter(raw.get(0)))
+			setAction(raw.remove(0));
+
+		// List for parameters as ||arg, arg, arg|, |arg, arg, arg||, first arg
+		// is parameter, rest are arguments
+		final ArrayList<ArrayList<String>> parameters = new ArrayList<>();
+
+		if (logger.isTraceEnabled())
+			logger.trace("Iterating over arguments list.");
+
+		// Iterate over args array, fill parameters list
+		for (final String item : raw)
+
+			// Check which parameter it is
+			if (item.startsWith("--")) {
+
+				// Its long, append new List and add parameter.
+				parameters.add(new ArrayList<String>());
+				parameters.get(parameters.size() - 1).add(item);
+
+			} else if (item.startsWith("-"))
+				// Its short, add each single character as parameter to list.
+				for (final Character character : item.replace("-", "")
+						.toCharArray()) {
+					parameters.add(new ArrayList<String>());
+					parameters.get(parameters.size() - 1).add(
+							"-" + character.toString());
+				}
+			else // Add to last parameter if there is one, otherwise add to
+					// arguments
+			if (parameters.size() >= 1)
+				parameters.get(parameters.size() - 1).add(item);
+			else
+				getArguments().add(item);
+
+		if (logger.isTraceEnabled())
+			logger.trace("Iterate over found parameters and include them");
+
+		// Iterate over parameters list, fill parameters object
+		for (final ArrayList<String> parameter : parameters)
+
+			// Check if is not empty
+			if (parameter.size() >= 1) {
+
+				// Get parameter or stay null if is no parameter.
+				ParameterName param = null;
+				if (parameter.get(0).startsWith("--"))
+					param = getNameByLong(parameter.get(0).replaceAll(
+							"^--", ""));
+				else if (parameter.get(0).startsWith("-"))
+					param = getNameByShort(parameter.get(0).replaceAll(
+							"^-", ""));
+
+				// Add as argument if is no parameter or add to parameters if is
+				// parameter
+				if (param == null)
+					getArguments().addAll(parameter);
+				else {
+					// Iterate over parameter arguments and add as value
+					for (final String arg : parameter.subList(1,
+							parameter.size()))
+
+						// Add to normal arguments if parameter value is full
+						if (!get(param).add(arg))
+							getArguments().add(arg);
+
+					// Set present
+					get(param).setPresent(true);
+				}
+
+			} else
+				continue;
+		
+		if (logger.isDebugEnabled())
+			logger.debug("Parameters: {}", toString());
+	}
 
 	/**
 	 * Runs the set action
@@ -319,6 +404,9 @@ public class Parameters extends HashMap<ParameterName, Parameter> {
 	public void runAction() {
 		if (getActions().containsKey(action))
 			getActions().get(action).run(this);
+		else
+			if(logger.isErrorEnabled())
+				logger.error("No such action \"{}\"", action);
 	}
 
 	/**
